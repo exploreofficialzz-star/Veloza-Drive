@@ -1,4 +1,5 @@
 // lib/core/services/notification_service.dart
+import 'dart:ui' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../constants/app_constants.dart';
 import 'storage_service.dart';
@@ -114,10 +115,4 @@ class NotificationService {
   }
 
   static Future<void> cancelAll() => _plugin.cancelAll();
-}
-
-// ignore: avoid_classes_with_only_static_members
-class Color {
-  final int value;
-  const Color(this.value);
 }
