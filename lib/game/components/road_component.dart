@@ -1,10 +1,11 @@
 // lib/game/components/road_component.dart
 import 'package:flame/components.dart';
-import 'package:flutter/material.dart';
+import 'package:flame/game.dart';
+import 'package:flutter/material.dart' hide TimeOfDay;
 import '../../data/models/level_model.dart';
 import '../../core/constants/app_constants.dart';
 
-class RoadComponent extends PositionComponent {
+class RoadComponent extends PositionComponent with HasGameReference<FlameGame> {
   final LevelModel level;
   double _scrollOffset = 0;
   static const double scrollSpeed = 300;
@@ -13,7 +14,7 @@ class RoadComponent extends PositionComponent {
 
   @override
   Future<void> onLoad() async {
-    size = gameRef!.size;
+    size = game.canvasSize;
   }
 
   @override
@@ -112,9 +113,9 @@ class RoadComponent extends PositionComponent {
       ..color = Colors.white.withOpacity(0.4)
       ..strokeWidth = 2;
 
-    final dashHeight = 40.0;
-    final dashGap = 30.0;
-    final period = dashHeight + dashGap;
+    const dashHeight = 40.0;
+    const dashGap = 30.0;
+    const period = dashHeight + dashGap;
 
     for (int lane = 1; lane < AppConstants.numberOfLanes; lane++) {
       final x = roadLeft + laneW * lane;
