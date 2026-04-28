@@ -27,7 +27,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace "com.chastechgroup.veloza_drive"
-    compileSdk 34
+    compileSdk 35
     ndkVersion "27.0.12077973"
 
     compileOptions {
@@ -46,7 +46,7 @@ android {
     defaultConfig {
         applicationId "com.chastechgroup.veloza_drive"
         minSdkVersion 21
-        targetSdkVersion 34
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
