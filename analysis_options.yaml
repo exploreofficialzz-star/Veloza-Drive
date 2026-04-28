@@ -1,0 +1,23 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - avoid_print
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - unnecessary_const
+    - use_key_in_widget_constructors
+    - always_declare_return_types
+    - annotate_overrides
+    - avoid_unnecessary_containers
+    - sized_box_for_whitespace
+    - use_full_hex_values_for_flutter_colors
+
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+    dead_code: warning
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
