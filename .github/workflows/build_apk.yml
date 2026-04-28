@@ -15,7 +15,7 @@ on:
         options: [ debug, release ]
 
 env:
-  FLUTTER_VERSION: '3.22.0'
+  FLUTTER_VERSION: '3.29.3'
   JAVA_VERSION: '17'
 
 jobs:
@@ -43,6 +43,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: 🔧 Patch Gradle wrapper to 8.6
+        run: |
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.6-all.zip|' \
+            android/gradle/wrapper/gradle-wrapper.properties
+          echo "✅ Gradle wrapper:"
+          grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
 
       - name: 📦 Get dependencies
         run: flutter pub get
@@ -92,6 +99,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: 🔧 Patch Gradle wrapper to 8.6
+        run: |
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.6-all.zip|' \
+            android/gradle/wrapper/gradle-wrapper.properties
+          echo "✅ Gradle wrapper:"
+          grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
 
       - name: 📦 Get dependencies
         run: flutter pub get
