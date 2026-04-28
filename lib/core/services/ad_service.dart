@@ -1,4 +1,5 @@
 // lib/core/services/ad_service.dart
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -169,27 +170,5 @@ class AdService extends ChangeNotifier {
     _isBannerReady = false;
     _isInterstitialReady = false;
     _isRewardedReady = false;
-  }
-}
-
-// ignore: avoid_classes_with_only_static_members
-class Completer<T> {
-  final _completer = _InternalCompleter<T>();
-  Future<T> get future => _completer.future;
-  bool get isCompleted => _completer.isCompleted;
-  void complete(T value) => _completer.complete(value);
-}
-
-class _InternalCompleter<T> {
-  final _controller = StreamController<T>();
-  bool _completed = false;
-  bool get isCompleted => _completed;
-  Future<T> get future => _controller.stream.first;
-  void complete(T value) {
-    if (!_completed) {
-      _completed = true;
-      _controller.add(value);
-      _controller.close();
-    }
   }
 }
