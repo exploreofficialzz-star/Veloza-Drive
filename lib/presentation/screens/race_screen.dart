@@ -1,4 +1,5 @@
 // lib/presentation/screens/race_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:provider/provider.dart';
@@ -135,40 +136,57 @@ class _RaceScreenState extends State<RaceScreen> {
 
 // ── Countdown Overlay ─────────────────────────────────────────
 
-class _CountdownOverlay extends StatelessWidget {
+class _CountdownOverlay extends StatefulWidget {
   final RacingGame game;
   const _CountdownOverlay({required this.game});
 
   @override
+  State<_CountdownOverlay> createState() => _CountdownOverlayState();
+}
+
+class _CountdownOverlayState extends State<_CountdownOverlay> {
+  Timer? _timer;
+  int _display = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      final t = widget.game.countdownTimer.ceil().clamp(0, 3);
+      if (t != _display) setState(() => _display = t);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final label = _display > 0 ? '$_display' : 'GO!';
     return Center(
-      child: AnimatedBuilder(
-        animation: game,
-        builder: (_, __) {
-          final t = game.countdownTimer.ceil();
-          final label = t > 0 ? '$t' : 'GO!';
-          return Text(
-            label,
-            style: GoogleFonts.rajdhani(
-              fontSize: 96,
-              fontWeight: FontWeight.w900,
-              color: t > 0 ? AppTheme.accentGold : AppTheme.success,
-              shadows: [
-                Shadow(
-                  color: (t > 0 ? AppTheme.accentGold : AppTheme.success)
-                      .withOpacity(0.6),
-                  blurRadius: 30,
-                ),
-              ],
+      child: Text(
+        label,
+        style: GoogleFonts.rajdhani(
+          fontSize: 96,
+          fontWeight: FontWeight.w900,
+          color: _display > 0 ? AppTheme.accentGold : AppTheme.success,
+          shadows: [
+            Shadow(
+              color: (_display > 0 ? AppTheme.accentGold : AppTheme.success)
+                  .withOpacity(0.6),
+              blurRadius: 30,
             ),
-          ).animate(key: ValueKey(t)).scale(
-                begin: const Offset(0.5, 0.5),
-                end: const Offset(1.0, 1.0),
-                duration: 300.ms,
-                curve: Curves.elasticOut,
-              );
-        },
-      ),
+          ],
+        ),
+      ).animate(key: ValueKey(_display)).scale(
+            begin: const Offset(0.5, 0.5),
+            end: const Offset(1.0, 1.0),
+            duration: 300.ms,
+            curve: Curves.elasticOut,
+          ),
     );
   }
 }
@@ -358,7 +376,7 @@ class _ResultOverlay extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onNext;
   final VoidCallback onQuit;
-  final Function(BuildContext, RacingGame) onSecondChance;
+  final VoidCallback onSecondChance; // fixed: was Function(BuildContext, RacingGame)
 
   const _ResultOverlay({
     required this.won,
@@ -446,16 +464,11 @@ class _ResultOverlay extends StatelessWidget {
 
               // Lost actions
               if (!won) ...[
-                // Second chance via ad
                 if (!secondChanceUsed && adService.isRewardedReady)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => onSecondChance(
-                          context,
-                          // ignore: invalid_use_of_protected_member
-                          WidgetsBinding.instance.focusManager.rootScope
-                              as RacingGame),
+                      onPressed: onSecondChance, // fixed: direct VoidCallback
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accentGold,
                         foregroundColor: Colors.black,
