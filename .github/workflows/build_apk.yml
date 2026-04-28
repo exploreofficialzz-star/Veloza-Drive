@@ -1,0 +1,198 @@
+name: Veloza Drive — Build APK
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options: [ debug, release ]
+
+env:
+  FLUTTER_VERSION: '3.22.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  #  BUILD DEBUG APK (always runs)
+  # ──────────────────────────────────────────────────────────────
+  build-debug:
+    name: 🔨 Build Debug APK
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.build_type == 'debug'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: 📦 Get dependencies
+        run: flutter pub get
+
+      - name: 🔍 Analyze code
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      - name: 🏗️ Build Debug APK
+        run: flutter build apk --debug --target-platform android-arm64
+
+      - name: 📤 Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: veloza-drive-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+
+      - name: 📊 APK Size Report
+        run: |
+          APK_SIZE=$(du -sh build/app/outputs/flutter-apk/app-debug.apk | cut -f1)
+          echo "## 📦 Debug APK Size: $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────
+  #  BUILD RELEASE APK (main branch or manual trigger)
+  # ──────────────────────────────────────────────────────────────
+  build-release:
+    name: 🚀 Build Release APK
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'release')
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: 📦 Get dependencies
+        run: flutter pub get
+
+      - name: 🔐 Decode keystore from secret
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p android/build
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/build/keystore.jks
+          echo "✅ Keystore decoded"
+
+      - name: 🏗️ Build Release APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "⚠️  No keystore found — building unsigned release APK"
+            flutter build apk --release --target-platform android-arm64 \
+              --no-shrink
+          else
+            echo "🔐 Building signed release APK"
+            flutter build apk --release --target-platform android-arm64
+          fi
+
+      - name: 🏗️ Build Release App Bundle (AAB)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build appbundle --release
+        continue-on-error: true
+
+      - name: 📤 Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: veloza-drive-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: 📤 Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: veloza-drive-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: 📊 Build Summary
+        run: |
+          echo "## 🏎️ Veloza Drive — Release Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            APK_SIZE=$(du -sh build/app/outputs/flutter-apk/app-release.apk | cut -f1)
+            echo "- **APK Size**: $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
+            AAB_SIZE=$(du -sh build/app/outputs/bundle/release/app-release.aab | cut -f1)
+            echo "- **AAB Size**: $AAB_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Built by**: ChAs Tech Group 🏎️" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────
+  #  AUTO-RELEASE (only on version tags like v1.0.0)
+  # ──────────────────────────────────────────────────────────────
+  create-release:
+    name: 🏁 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-release
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: 📥 Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: veloza-drive-release-apk
+          path: ./release
+
+      - name: 🎉 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Veloza Drive ${{ github.ref_name }}"
+          body: |
+            ## 🏎️ Veloza Drive ${{ github.ref_name }}
+
+            ### What's New
+            - Latest build from ChAs Tech Group
+
+            ### Install
+            Download the APK below and install on your Android device.
+
+            > ⚠️ Enable "Install from unknown sources" in your device settings.
+
+            **Built with ❤️ by ChAs · ChAs Tech Group**
+          files: ./release/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
